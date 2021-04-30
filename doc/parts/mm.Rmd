@@ -1,0 +1,227 @@
+---
+editor_options: 
+  markdown: 
+    wrap: sentence
+---
+
+# Methods
+
+```{r prep var MM}
+n_all_samples = uniqueN(complete_data$gr_sample_id)
+earliest_year = year(min(complete_data$date, na.rm = T))
+last_year = year(max(complete_data$date, na.rm = T))
+samples_distance = uniqueN(distannce_removed$gr_sample_id)
+ratio_distance = round(samples_distance/n_all_samples * 100, 0)
+n_sites_impact = uniqueN(impact$gr_sample_id)
+ratio_impact = round(n_sites_impact/n_all_samples * 100, 0)
+
+## -- total number of taxa 
+data_all_n_taxa = ncol(all_data) - 2
+
+col_site = which(names(all_data) == "gr_sample_id")
+col_type = which(names(all_data) == "ls_bd_20")
+
+all_data %>%
+        .[, -c(col_site, col_type), with = F] %>%
+        names() -> 
+        taxa_names 
+gen_id = str_detect(taxa_names, "\\.", negate = TRUE)
+genus_names = taxa_names[gen_id]
+n_gen = length(genus_names)
+n_spe = data_all_n_taxa - n_gen
+```
+
+## Preparation of diatom data
+
+<!-- How did we get the data?     -->
+<!-- Data curation --> 
+We compiled a large data set of diatom samples from rivers in different European countries.
+Our data set comprises `r n_all_samples` samples that were taken between `r earliest_year` and `r last_year`.
+Each of the samples was assent to the closest stream segment in the stream network provided by @globevnik2019btfr.
+If the closest stream segment was further than 500m removed from the location of the sample we removed the sample as we could no unambiguously assign it to a segment. 
+This step reduced the number of samples to `r samples_distance` (`r ratio_distance`% of all samples).
+Next, we removed samples with were strongly impacted by humans. 
+To identify non-reference sites, we used the three different diatom indices. 
+
+<!-- more information on diatom indices --> 
+
+Selection by anthropogenic stressors can cover selection by natural environmental selection processes (selection here is meant in the sense of Vellend (cite)) [@Verdonschot2006]. 
+In addition, as  we are interested in evaluating the capacity of broad river types to delineate spatially stable reference diatom communities, non-reference sites are not essential to our question. 
+Removing non-reference sites further decreased the number of samples to `r n_sites_impact` (`r ratio_impact`% of all samples).
+
+```{r fig-map, fig.cap = "Locations of sampling sites. The upper left map (too far) shows sites that were more than 500 meters removed from the next broad river types stream segment. The upper right map (impacted) shows sites that were categorized as strongly anthropogenically impacted. The lower map (final) shows all samples that were used for the analyses."}
+
+img <- readPNG("figures/map_for_paper.png")
+grid.raster(img)
+
+```
+
+
+<!-- How did we harmonize data sets.  -->
+The data originated from different sources and required adjustments to ensure taxonomic consistency.
+First we used the Global Biodiversity Information Facility (GBIF) to check whether any of our species were considered synonyms and if so changed their names to accepted names suggested in GBIF.
+To integrate the different types of data we transformed all data to presence-absence. 
+Next, we removed all observations that did not belong to one of the following classes: Clitellata, Insecta, Malacostraca, Bivalvia or Gastropoda.
+
+After removing data that did not meet our criteria, we did not have sufficient data to adequately represent all river types.
+We considered the data for a river type insufficient if it contained to few sites (\< 20) or the sites were spatially clustered in a way that was not representative of the river type.
+Maps of the sampling locations for the individual river types are provided in the Supplementary materials.
+We were not able to represent: BRT6, 7, 12, 13, 17, 19, 20. 
+Samples from these river types were removed.
+<!-- The river types we were able to represent are: RT1, RT2, RT3, RT4, RT8, RT9, RT10, RT11, RT14, RT15, RT16 and RT18. -->
+
+## Comparison of typoglogies
+
+To evaluate the two typologies proposed by @LycheSolheim2019 we compared it with the three other typologies: i) the k-means typology of the global river classification framework [GloRiC, @OuelletDallaire2019]; ii) the freshwater ecoregions proposed by @illies1978limnofauna; and iii) the biogeographical regions (BGR) proposed by the Europoean Environmental Agency [@EuropeanEnvironmentalAgencyEEA2016].
+These typologies represent two different general kinds of typologies: reach-based typologies (BRT and GloRiC) and regional typologies (Illies and BGR). 
+The former assess single stream reaches. 
+The instances of individual types are not spatially contiguous, can be far apart and are commonly very close to instances of different types.
+The latter assess large contiguous regions and there is only one instance of each region. 
+Different types are only close at the regional margins.
+In addition to these five established typologies, we also evaluated BRT_red, a reduced version of BRT20 in which types that were found to have very similar typical assemblages were combined (see Indicator and typical assemblages for more details). 
+As mentioned before, only genus-level data (*data genus*) were used for this analysis.
+We also ensured that every type in every typology was represented by at least twenty sites.
+Observations from types that failed to meet this criterion were removed until only adhered types remained.
+See table \@ref(tab::tab-types) for the remaining types per typology and the respective number of samples.
+
+In order to be able to judge the results, we created two additional typologies.
+As an upper bound of what to expect, we created a classification of biological data using flexible beta clustering [@lance1967general] with the $\beta$ parameter set to 0.625.
+The optimal number of groups was investigated using Average Silhouette Width and determined to be nine. 
+Since this typology is not constrained by environment or space but only represents patterns in the biological data, we expect it to delineate more sharply between biological assemblages than any of the other typologies.   
+As a lower bound, we created 100 random partitions of the data.
+For each partition we first drew the number of classes as a random variable from the interval between the lowest number of types in any of the typologies tested (6 in BGR) and the highest number (14 in BRT20 and GloRiC).
+Then we assigned each observation randomly to one of the groups.
+
+We calculated four cluster quality metrics for each typology: the average silhouette width, the Calinski-Harabasz index, an indicator value score and the classification strength.
+
+<!-- What is ASW  -->
+
+The average silhouette width [ASW, @Kaufmann1990] is computed as 
+$$ASW = \frac{1}{n}\Sigma_{i=1}^n \dfrac{a_i-b_i}{max(a_i,b_i)}$$
+where $a_i$ is the average dissimilarity of point $i$ to points from its type, $b_i$ is the average dissimilarity of point $i$ to points from the closest other type and $n$ is the number of observations.
+Positive values indicate, that on average points are more similar to observations from their own type than to those of the most similar one.
+Therefore high scores imply better typologies. 
+@Lengyel2019 recently proposed a generalized version of the ASW. 
+By using the arithmetic average to compute $a_i$ and $b_i$, spherical clusters are assumed to be optimal. 
+Using a generalized mean instead, we can flexibly adjust our validity metric to put a stronger emphasis on compactness ($a_i$) or separation ($b_i$). 
+The generalized mean of degree $p$ ($M^p$) is computed as: 
+$$ M^p (\mathbf{x}) = \bigg( \dfrac{1}{n} \Sigma_{i=1}^n x_i^p\bigg)^{1/p} $$
+This can take the value of common summary statistics such as the minimum ($p=-\infty$), maximum ($p=\infty$) or harmonic mean ($p=-1$). 
+For example, for $p=-\infty$ the silhouette width is the difference between the minimum distance of observation $i$ to any other observation from the same type and the minimum distance from that observation to any observation from the next closest type. 
+This perspective excludes outliers and values separation over compactness. 
+This weighting shifts towards compactness as we increase $p$.
+We evaluated the silhouette width for $p\ \in \{-\infty,-2,-1,1,2,\infty\}$. 
+If not further specified, ASW refers to the common average silhouette width (i.e. $p = 1$) in the remainder of the text. 
+<!-- use cases -->
+
+<!-- What is Calinski-Harabasz? -->
+The Calinksi-Harabasz Index [CH, @calinski1974dendrite] is computed as 
+$$CH = \dfrac{BGSS}{WGSS} \times \dfrac{n-k}{k-1}$$
+where $BGSS$ is the squared sum of distances between group centroids and the overall centroid (between group sum-of-squares), $WGSS$ is sum of squared of distances between observations of one group (within group sum-of-squares), $k$ is the number of clusters and $n$ the number of observations.
+High values indicate, that variation within types is smaller than between types
+As the second term controls for the degrees of freedom, it can be understood as an analog to the F-Statistic.
+The algorithm assumes Euclidean data, but good performance with a similar metrics was shown for binary data in the context of fMRI-scans [@Dimitriadou2004].
+<!-- use cases -->
+
+<!-- What is the indicator value score? -->
+The indicator value score (IVS) is based on the indicator value (IndVal) proposed by @dufrene1997species.
+The IndVal itself will be explained in detail below, here we only note that we used 999 permutations to compute *p*-values and in contrast to the latter application did not control the family-wise error rate.
+IVS is the fraction of taxa that are statistically significant indicators (at a significance level of 0.01) for some type of a typology.
+Higher scores indicate a better classification.
+
+<!-- What is ISAMIC -->
+
+<!--The Indicator Species Analysis Minimizing Intermediate Constancies [ISAMIC, @Roberts2020] measures the constancy of a taxon within clusters.
+A taxon has a high constancy if it occurs in all or no samples from a cluster.
+The constancy is minimized if it occurs in half of the samples.
+The ISAMIC is computed as: 
+$$ISAMIC = \dfrac{\Sigma_{i=1}^M 2 \times(\Sigma_{k=1}^K |c_{ik} - 0.5|/K)}{M}$$
+, where $M$ is the number of taxa and $c_{ik}$ the constancy of taxon $i$ in cluster $k$.
+The statistics has been used to evaluate typologies before [e.g. @Aho2008; @Lotter2013; @Roberts2015].
+Again, higher values indicate sharper classifications. 
+For ISAMIC and IVS, we assume especially high values for the biological typology, as the same data that are tested, were also used to derive the classification [@Caceres2009].-->
+
+<!-- What is Classification strength -->
+
+Lastly, we computed the classification strength [CS, @VanSickle1997]. 
+Classification strength is the difference between mean within cluster similarity ($\overline{W}$) and mean between cluster ($\overline{B}$) similarity. 
+As such it ranges between 0 ($\overline{W} = \overline{B}$) and 1 ($\overline{B} = 0$), where higher values indicate a stronger classification. 
+A similar and recently applied metric is the partition analysis [@Roberts2019] which is the ratio of $\overline{W}$ and $\overline{B}$. 
+<!-- Examples for Diatoms? -_> 
+Here we opted for the former as is has been used in similar analyses [e.g. @Gerritsen2000; @VanSickle2000;  @Vasconcelos2013] which enables us to directly compare our results with those of previous studies. 
+Note that results did not differ qualitatively between CS and partition analysis (data not shown).
+Similarities were calculated as 1 - Jaccard distance.  
+
+<!--What is within cluster sum of squares?  --> 
+<!-- The within cluster sum-of-squares (wcss) is computed as  -->
+<!-- $$wcss = \Sigma_{k=1}^{K} \frac{\Sigma_{i=1}^{n_k}\Sigma_{j=1}^{n_k} \frac{d_{mij^2}}{n_k}}{2}$$ -->
+<!-- , where $d_{ij}$ is the dissimilarity of observations $i$ and $j$ and $n_k$ is the number of observation in cluster $k$. -->
+<!-- If $d$ is a Euclidean distance this is equal to the objective function of k-means clustering. -->
+
+Based on these four cluster criteria, each typology was assigned a score.
+We used these scores to evaluate the overall performances of typologies.
+The typology that performed best in some metric received 6 points, the second 5, the third 4 and so on.
+Differences smaller than 5% of the range between biological and random partitions were regarded as ties.
+If two classes were tied, they both received the point for the position reduced by 0.5.
+For example, if two typologies are tied for the first place, both receive a score of 5.5.
+A three way tie, was settled by assigning all three classes the middle score.
+So if three classes are tied and lie at positions 2, 3 and 4, each is assigned 4 points.
+
+## Indicator and typical assemblages
+
+<!-- How did we derive indicator species? -->
+Both indicator and typical assemblages were derived for BRT20. 
+We used the IndVal approach of @dufrene1997species to identify indicator taxa.
+For this analysis we used *data genus* which consists of genus level presence-absence data. 
+The IndVal can be understood as the product of the two quantities $A$ and $B$. 
+For our purposes, $A$ is the relative number of observations of taxon $i$ that are within type $j$. 
+It was originally described as specificity [@dufrene1997species] but is better understood as concentration [@Podani2010] because it is independent of the total number of types. 
+$B$ is the relative frequency with which species $i$ occurs in type $j$. 
+The maximum score is assigned to a species which only occurs in one type ($A=1$) and occurs in all samples of that type ($B=1$). 
+Here, we used the group-equalized version of the IndVal which accounts for the varying number of samples between types. 
+The statistical significance of the IndVal statistic was assessed with a permutation test that computes IndVal values for random permutations of sites and types and compares the observed IndVal against this empirical distribution. 
+We used $2*10^5$ permutations. 
+<!-- As we conduct one test per genus we needed to account for multiple testing and did so using Holm's step-down procedure [@westfall1993resampling]. -->
+This procedure ranks tests by their *p*-values in ascending order.
+The first *p*-value is divided by the number of tests (here the number of taxa, M), the second by M-1, the third by M-2 and so on until a *p*-value exceeds the significance level after the division. 
+We used 0.05 as significance level. 
+
+<!-- How did we derive typical assemblages?  -->
+These indicator species provide valuable insight into the communities but miss the ubiquitous generalist species that occur in many types (tramp species *sensu* @McGeoch2002). 
+Even if these taxa are common within a type (high $B$) they will typically have low concentrations in most types (low $A$) and hence low and statistically non-significant indicator values. 
+Hence the indicator assemblages do not represent a typical sample, in these sense that these taxa can reasonably expected to occur in samples of the type. 
+We derived such typical assemblages by setting explicit thresholds for $B$. 
+We used *data all* to derive typical assemblages. 
+These data have different taxonomic levels and we set different thresholds for different taxonomic levels. 
+All species that occurred in more than 25% of samples of a river type (i.e. $B > 0.25$) were considered typical. 
+
+After deriving typical assemblages, we evaluated their similarity using the Jaccard similarity. 
+A similarity of 0.5 indicates, that half of the taxa in the combined taxa pool occur in both typical assemblages. 
+If the similarity between two typical assemblages exceeded 0.8, we deemed the river types redundant and combined them. 
+For example, the broad river types BRT2 and BRT3 (medium to large and very small to small siliceous lowland rivers) might be found to be redundant and combined into BRT2_3 (very small to large siliceous lowland rivers). 
+All sites belonging to either of these river types would also be reclassified and the typical assemblages would be derived again. 
+This is repeated until no similarity exceeded 0.8. 
+We did not do the same with indicator assemblages as they are explicitly being optimized for being different from one another (through the equal weighting of A and B). 
+This way we can evaluate whether the ad-hoc combinations of river types used to derive the BRT12 typology are justified by biological homogeneity. 
+
+<!-- We evaluated the average taxonomic resolution of the data available for each river type. -->
+<!-- To this end, we assigned a score of three to each observed species, two to each genus and one to each family or lower resolved taxon and computed the average score for each river type. -->
+
+<!-- How did we assign traits?  -->
+<!-- We used a harmonized trait data-base of European macroinvertebrates (Kunz pers comm) to assign traits values to the indicator and typical assemblages.  -->
+<!-- The traits are fuzzy-coded [@chevene1994fuzzy], which allow single species to express tendencies towards different trait modalities.  -->
+<!-- Instead of assigning a single trait modality, fuzzy-coding encodes affinities for each modality, in our case ranging from 0 (low affinity) to 1 (high affinity). -->
+<!-- This can represent metaphoetetic taxa or genera with variation among species.  -->
+<!-- We considered seven traits: feeding mode, respiration strategy, voltinism, locomotion, oviposition, body size and body form.  -->
+<!-- If the traits for a taxon were not available in the data-base we used that of a lower taxonomic level, if available.  -->
+<!-- Taxa that could not be assigned traits were removed from the trait analysis.  -->
+<!-- We computed mean modality affinities for each trait for typical and indicator assemblages.  -->
+
+<!-- Software  -->
+## Software
+All computations were conducted in the R Statistical Environment v. 4.0.3 [@RCT2020]. 
+Data were prepared using data.table 1.14.0 [@Dowle2021], tidyverse packages [@Wickham2019] and taxize 0.9.98 [@ScottChamberlain2013; @Chamberlain2020]. 
+Geospatial analyses were conducted using sf [@Pebesma2018]. 
+Clusters were created and evaluated with fpc [@Hennig2020], indicspecies [@Caceres2009], labdsv [@Roberts2019], optpart [@Roberts2020].
+Generalized silhouette widths were computed with the R functions provided in the supplementary materials of @Lengyel2019.
+Figures and maps were created with ggplot2 [@Wickham2016] and tmap [@Tennekes2018]. 

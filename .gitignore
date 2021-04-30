@@ -37,3 +37,8 @@ vignettes/*.pdf
 
 # R Environment Variables
 .Renviron
+
+# folders
+data/
+fig/
+R/old_pre_210419/

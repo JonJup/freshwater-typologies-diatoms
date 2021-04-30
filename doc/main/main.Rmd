@@ -1,0 +1,93 @@
+---
+title: "get real Diatom paper"
+author: "Jonathan Jupke"
+date: '`r gsub(pattern="k", replacement="c", x=gsub("^0", "", format(Sys.time(), "%B %d, %Y")), )`'
+bibliography: ../parts/ref.bib
+#theme: flatly
+header-includes:
+  - \usepackage[left]{lineno}
+  - \linenumbers
+linestretch: 1.2
+colorlinks: true
+output:
+  bookdown::pdf_document2:
+    latex_engine: pdflatex
+    number_sections: yes
+    toc: no
+    includes: 
+        in_header: ../template/header.tex
+csl: ../template/ecology_letters.csl
+mainfont: Times New Roman
+sansfont: Times New Roman
+fontsize: 12pt
+link-citations: true
+documentclass: article
+geometry: margin=1in
+always_allow_html: yes
+editor_options: 
+  
+  chunk_output_type: console
+---
+---
+nocite: | 
+...
+
+<!-------------------------------------------------->
+<!--------------------- TODO ----------------------->
+<!-------------------------------------------------->
+
+<!----- WRITE SECTIOS -----> 
+<!-- MM: Describe diatom indices
+<!-- MM: Classification strength for diatoms? 
+<!-- MM: Write Bonferonni 
+
+<!----- ADD REFERENCES ----->  
+<!-- MM: 
+
+-->
+
+
+
+```{r markdown setup, include=FALSE}
+library(knitr)
+library(kableExtra)
+opts_chunk$set(echo = FALSE, warning = FALSE, message = FALSE)
+opts_knit$set(root.dir = here::here())
+```
+
+<!-- SETUP -->
+```{r R setup}
+source("R/setup_doc.R")
+```
+
+<!-- LOAD DATA --> 
+```{r load data}
+complete_data     = readRDS("data/01_all_dia_combined.rds")
+distannce_removed = readRDS("data/02_data_close.rds")
+impact            = readRDS("data/03_data_reference_condition.rds")
+all_data          = readRDS("data/05_sxs_list.RDS")
+```
+
+<!-- Abstract -->
+```{r call abstract, child="../parts/abstract.rmd"}
+```
+
+<!-- Introduction --> 
+```{r call intro, child="../parts/introduction.rmd"}
+```
+
+<!-- Method and Materials --> 
+```{r call mm, child="../parts/mm.rmd"}
+```
+<!-- Results --> 
+```{r call results, child="../parts/results.rmd"}
+```
+<!-- Discussion --> 
+```{r call discussion, child="../parts/discussion.rmd"}
+```
+<!-- Supplementary Materials --> 
+```{r call supplementary materials, child="../parts/sm.rmd"}
+```
+
+\newpage
+# References 
